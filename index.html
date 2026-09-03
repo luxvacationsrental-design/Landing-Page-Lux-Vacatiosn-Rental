@@ -824,8 +824,8 @@
               <input type="email" id="email" name="email" autocomplete="email" required>
             </div>
             <div class="field">
-              <label for="phone">Phone Number</label>
-              <input type="tel" id="phone" name="phone" autocomplete="tel" required>
+              <label for="phone">Phone <span style="opacity:.6;font-weight:400">— optional, speeds things up on WhatsApp</span></label>
+              <input type="tel" id="phone" name="phone" autocomplete="tel">
             </div>
           </div>
 
@@ -1000,6 +1000,9 @@
     var nextBtn = document.getElementById('nextBtn');
     var submitBtn = document.getElementById('submitBtn');
     var WEBHOOK_URL = 'https://blue-gull-567825.hostingersite.com/webhook/lead-landing';
+    var WEBHOOK_PARCIAL = 'https://blue-gull-567825.hostingersite.com/webhook/lead-parcial';
+    var enviadoCompleto = false;
+    var enviadoParcial = false;
     var successPanel = document.getElementById('formSuccess');
     var errorPanel = document.getElementById('formError');
     var progressBar = document.querySelector('.progress-bar');
@@ -1111,6 +1114,7 @@
       errorPanel.hidden = true;
 
       function showSuccess(){
+        enviadoCompleto = true;
         document.getElementById('successName').textContent = payload.nombre || 'there';
         form.style.display = 'none';
         progressBar.style.display = 'none';
@@ -1143,6 +1147,51 @@
         if(res.ok){ showSuccess(); } else { showError(); }
       }).catch(showError);
     });
+
+    // --- Rescate de abandonos -------------------------------------------
+    // Si alguien deja el nombre y el correo pero se va sin terminar,
+    // guardamos ese lead parcial en vez de perderlo del todo.
+    function datosParciales(){
+      var d = new FormData(form);
+      var g = function(k){ return (d.get(k) || '').toString().trim(); };
+      if(!g('email')) return null;
+      var detalles = [];
+      [['Tipo de propiedad','propertyType'], ['Ubicacion','location'],
+       ['Semanas disponibles','weeksAvailable'], ['Interes','interest'],
+       ['Cuando quiere empezar','timeline']].forEach(function(c){
+        var v = g(c[1]); if(v) detalles.push(c[0] + ': ' + v);
+      });
+      return {
+        nombre:   g('fullName'),
+        email:    g('email'),
+        telefono: g('phone'),
+        idioma:   'English',
+        programa: /sell/i.test(g('interest')) ? 'Sell Contract' : 'Rental Contract',
+        paso:     current,
+        detalles: detalles.join(' | '),
+        mensaje:  'Lead parcial: dejo sus datos pero no termino el formulario'
+      };
+    }
+
+    function enviarParcial(){
+      if(enviadoCompleto || enviadoParcial) return;
+      var d = datosParciales();
+      if(!d) return;
+      enviadoParcial = true;
+      try{
+        fetch(WEBHOOK_PARCIAL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(d),
+          keepalive: true
+        }).catch(function(){});
+      }catch(e){}
+    }
+
+    document.addEventListener('visibilitychange', function(){
+      if(document.visibilityState === 'hidden') enviarParcial();
+    });
+    window.addEventListener('pagehide', enviarParcial);
 
     render();
   })();
