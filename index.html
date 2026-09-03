@@ -5,6 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Unlimited Abundance | Rent Out Your Timeshare, Stress-Free</title>
 <meta name="description" content="Turn your unused timeshare weeks into real income. Exclusive guests, professional management, and full legal protection across Los Cabos, Puerto Vallarta, and the Riviera Maya.">
+<link rel="canonical" href="https://landing-page-lux-vacatiosn-rental.vercel.app/">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#12232e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%2312232e'/%3E%3Cpath d='M32 13l6.2 12.9L52 27.9l-10 9.7 2.4 13.8L32 44.9 19.6 51.4 22 37.6l-10-9.7 13.8-2z' fill='%23bfa06a'/%3E%3C/svg%3E">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Lux Vacations Rental">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Turn Your Unused Timeshare Weeks Into Real Income">
+<meta property="og:description" content="We rent out the weeks you don't use in Los Cabos, Puerto Vallarta and Riviera Maya. Vetted guests, professional management, legal contracts. One-time $497 listing fee.">
+<meta property="og:image" content="https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?q=80&w=1200&auto=format&fit=crop">
+<meta property="og:image:alt" content="Beachfront resort pool at sunset in Los Cabos, Mexico">
+<meta property="og:url" content="https://landing-page-lux-vacatiosn-rental.vercel.app/">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Turn Your Unused Timeshare Weeks Into Real Income">
+<meta name="twitter:description" content="Professional rental management for timeshare owners in Los Cabos, Puerto Vallarta and Riviera Maya.">
+<meta name="twitter:image" content="https://images.unsplash.com/photo-1518509562904-e7ef99cdcc86?q=80&w=1200&auto=format&fit=crop">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -564,13 +583,15 @@
     .hero-slide:nth-child(n+2){display:none;}
     .dest-card img{transition:none;}
   }
+  .form-error{background:#f7e7e5;border:1px solid #cb9089;color:#7d2420;border-radius:10px;padding:14px 16px;margin:0 0 16px;font-size:15px;line-height:1.55}
+  .form-error a{color:#7d2420;font-weight:600}
 </style>
 </head>
 <body>
 
 <header>
   <div class="container nav">
-    <a href="#" class="logo">Unlimited <span>Abundance</span><small>For Owners · Lux Vacations Rental</small></a>
+    <a href="/" class="logo" aria-label="Unlimited Abundance — inicio">Unlimited <span>Abundance</span><small>For Owners · Lux Vacations Rental</small></a>
     <nav class="nav-links" id="navLinks">
       <a href="#benefits">Benefits</a>
       <a href="#destinations">Destinations</a>
@@ -911,10 +932,15 @@
           </div>
         </form>
 
+        <p class="form-error" id="formError" hidden>
+          We couldn't send your information just now. Please try again, or reach us directly at
+          <a href="https://wa.me/14804957268" target="_blank" rel="noopener">WhatsApp +1 480 495 7268</a>.
+        </p>
+
         <div class="form-success" id="formSuccess">
           <div class="check">✓</div>
           <h3>Thank you, <span id="successName">there</span>!</h3>
-          <p>We've received your information and will reach out within 24 hours to walk you through the next steps. We've also opened an email draft with your answers — just hit send if it didn't go through automatically.</p>
+          <p>We've received your information and will reach out within 24 hours to walk you through the next steps. A confirmation email is on its way to you now.</p>
         </div>
       </div>
 
@@ -964,7 +990,9 @@
     var backBtn = document.getElementById('backBtn');
     var nextBtn = document.getElementById('nextBtn');
     var submitBtn = document.getElementById('submitBtn');
+    var WEBHOOK_URL = 'https://blue-gull-567825.hostingersite.com/webhook/lead-landing';
     var successPanel = document.getElementById('formSuccess');
+    var errorPanel = document.getElementById('formError');
     var progressBar = document.querySelector('.progress-bar');
     var progressLabelWrap = document.querySelector('.progress-label');
 
@@ -1054,32 +1082,168 @@
       var weeks = get('weeksAvailable');
       if(weeks === 'Points system' && get('pointsAmount')) weeks += ' (' + get('pointsAmount') + ' points)';
 
-      var lines = [
-        'Full Name: ' + get('fullName'),
-        'Email: ' + get('email'),
-        'Phone: ' + get('phone'),
-        'Property Type: ' + propertyType,
-        'Location: ' + get('location'),
-        'Weeks Available: ' + weeks,
-        'Interest: ' + get('interest'),
-        'Timeline: ' + get('timeline')
-      ];
+      var payload = {
+        nombre:         get('fullName'),
+        email:          get('email'),
+        telefono:       get('phone'),
+        idioma:         'English',
+        tier:           'owner',
+        programa:       /sell/i.test(get('interest')) ? 'Sell Contract' : 'Rental Contract',
+        propertyType:   propertyType,
+        location:       get('location'),
+        weeksAvailable: weeks,
+        timeline:       get('timeline'),
+        mensaje:        'Interest: ' + get('interest')
+      };
 
-      var subject = 'New Property Owner Lead — ' + get('fullName');
-      var body = lines.join('\n');
-      var mailto = 'mailto:info@luxvacationsrental.com?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+      var originalLabel = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending...';
+      errorPanel.hidden = true;
 
-      window.location.href = mailto;
+      function showSuccess(){
+        document.getElementById('successName').textContent = payload.nombre || 'there';
+        form.style.display = 'none';
+        progressBar.style.display = 'none';
+        progressLabelWrap.style.display = 'none';
+        successPanel.classList.add('active');
+        if(window.fbq){
+          try{
+            fbq('track', 'Lead', {
+              content_name: payload.programa,
+              content_category: 'owner',
+              value: 497,
+              currency: 'USD'
+            });
+          }catch(e){}
+        }
+      }
 
-      document.getElementById('successName').textContent = get('fullName') || 'there';
-      form.style.display = 'none';
-      progressBar.style.display = 'none';
-      progressLabelWrap.style.display = 'none';
-      successPanel.classList.add('active');
+      function showError(){
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
+        errorPanel.hidden = false;
+        errorPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function(res){
+        if(res.ok){ showSuccess(); } else { showError(); }
+      }).catch(showError);
     });
 
     render();
   })();
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://luxvacationsrental.com/#org",
+      "name": "Lux Vacations Rental",
+      "url": "https://luxvacationsrental.com/",
+      "telephone": "+1-480-495-7268",
+      "email": "info@luxvacationsrental.com",
+      "areaServed": [
+        {
+          "@type": "Place",
+          "name": "Los Cabos, Mexico"
+        },
+        {
+          "@type": "Place",
+          "name": "Puerto Vallarta, Mexico"
+        },
+        {
+          "@type": "Place",
+          "name": "Riviera Maya, Mexico"
+        }
+      ]
+    },
+    {
+      "@type": "Service",
+      "name": "Timeshare and vacation property rental management",
+      "serviceType": "Vacation rental management for owners",
+      "provider": {
+        "@id": "https://luxvacationsrental.com/#org"
+      },
+      "audience": {
+        "@type": "Audience",
+        "audienceType": "Timeshare and vacation property owners"
+      },
+      "areaServed": [
+        {
+          "@type": "Place",
+          "name": "Los Cabos, Mexico"
+        },
+        {
+          "@type": "Place",
+          "name": "Puerto Vallarta, Mexico"
+        },
+        {
+          "@type": "Place",
+          "name": "Riviera Maya, Mexico"
+        }
+      ],
+      "offers": {
+        "@type": "Offer",
+        "price": "497",
+        "priceCurrency": "USD",
+        "description": "One-time listing fee covering onboarding, marketing setup and account activation."
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What kind of properties do you accept?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "We accept timeshares and vacation properties located in recognized tourist destinations across Mexico, including Los Cabos, Puerto Vallarta and the Riviera Maya."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How much does it cost to list my property?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Listing your property has a one-time registration fee of $497 USD, which covers onboarding, marketing setup and account activation. There are no recurring or hidden fees beyond that."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need to be present during rentals?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. We coordinate check-in, check-out and all guest communication on your behalf."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is it legal to rent out my timeshare?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Every rental is backed by legal contracts that protect both the owner and the guest."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How soon can I start receiving bookings?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Once your property is listed, you can typically start receiving requests within days."
+          }
+        }
+      ]
+    }
+  ]
+}
 </script>
 
 </body>
